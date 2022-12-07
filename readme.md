@@ -9,7 +9,8 @@ The script is designed for working alongside MSSQL2JSON. While it would work for
 * create insert statement from JSON file created by MSSQL2JSON then inseert the data into a stuctrually compatible table.
 
 ## Requirement
-* PHP with MySQLi plug-in installed
+* Python 3.10 or newer version
+* MySQL OBDC Driver 
 * JSON file created from MSSQL2JSON
 * Empty Table with columes correctly setup for import 
 
