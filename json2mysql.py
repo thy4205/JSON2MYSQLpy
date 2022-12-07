@@ -9,15 +9,8 @@ import codecs
 #link = mysql.connector.connect( host='127.0.0.1', user='kf4', password ='Kf6655caton!', database ='test',port='3306' );
 server = '127.0.0.1'
 database = 'test'
-username = 'kf4'
-password = 'Kf6655caton!'
-
-
-
-server = '192.168.1.14:3301'
-database = 'test'
-username = 'kf4'
-password = 'Kf6655caton!'
+username = ''
+password = ''
 
 
 link = pyodbc.connect('DRIVER={MySQL ODBC 8.0 Unicode Driver};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
