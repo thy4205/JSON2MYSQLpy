@@ -13,16 +13,25 @@ username = ''
 password = ''
 
 
+
+# server = '192.168.1.14:3301'
+# database = 'test'
+# username = 'kf4'
+# password = 'Kf6655caton!'
+
+
 link = pyodbc.connect('DRIVER={MySQL ODBC 8.0 Unicode Driver};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password)
 cursor = link.cursor()
-numberOfChunkInEachQuery = 2500
+numberOfChunkInEachQuery = 250
 keywordList = []
 path = os.path.dirname(__file__)
 
 link.autocommit = False
 link.execute("START TRANSACTION")
 
-for filename in glob.glob(os.path.join(path, 'import_*.json')): #only process .JSON files in folder.      
+cleardTable = []   
+for filename in glob.glob(os.path.join(path, 'import_*.json')): #only process .JSON files in folder.  
+
     with open(filename, encoding='utf-8', mode='r') as json_file:
         data = json.load(json_file)
         tablename = data['tablename'].lower()
@@ -30,10 +39,17 @@ for filename in glob.glob(os.path.join(path, 'import_*.json')): #only process .J
         columnSize = data['columnSize']
         nullable = data['nullable']
         trueRowCount = len(data['rows'])
+        clearTableStatus = data['clearTable'] 
+        
+        if clearTableStatus == True and tablename not in cleardTable:
+            cursor.execute('Truncate '+tablename)
+            print('Truncated '+tablename)
+            cleardTable.append(tablename)
+
         
         createTableQuery = "CREATE TABLE IF NOT EXISTS "+tablename+"(";
         colIndex= 0;
-        print ('importing '+tablename+'...')
+        print ('importing: '+tablename+'...')
         for colume in data['columns']:
             createTableQuery+=colume
             match datatype[colIndex]:
@@ -57,7 +73,7 @@ for filename in glob.glob(os.path.join(path, 'import_*.json')): #only process .J
             if int(colIndex)<len(columnSize):
                 createTableQuery+=str(",")
         createTableQuery+=str(");")
-        print("Creating Table"+tablename)
+        print("Creating Table: "+tablename)
         cursor.execute(createTableQuery)
         #print("SET FOREIGN_KEY_CHECKS=0")
         cursor.execute("SET FOREIGN_KEY_CHECKS=0")
@@ -77,58 +93,62 @@ for filename in glob.glob(os.path.join(path, 'import_*.json')): #only process .J
             jsonchunck.append (tempjson[x:x+numberOfChunkInEachQuery])
         
         x=0
-        for chunkrow in jsonchunck:
-            
-            query=  "REPLACE INTO "+ tablename +" ("+(", ".join(data['columns']))+") VALUES "
-            
+    
+    for chunkrow in jsonchunck:
+        
+        query=  "REPLACE INTO "+ tablename +" ("+(", ".join(data['columns']))+") VALUES "
+        
+        i=0
+        #print ('\n')
+        #print (row)
+        #row = row[0]
+        
+        fieldNo = range(len(chunkrow[0]))
+        
+        chunkLoop = 0;
+        while chunkLoop<len(chunkrow):
+            query+="("
+            for i in fieldNo:
+                query+='?,'
+            query = query[:-1]+"),"
+            chunkLoop+=1
+        query = query[:-1]           
+        
+        insertContent = []
+        for row in chunkrow:
             i=0
-            #print ('\n')
-            #print (row)
-            #row = row[0]
+            for rvalue in row:
             
-            fieldNo = range(len(chunkrow[0]))
-            
-            chunkLoop = 0;
-            while chunkLoop<len(chunkrow):
-                query+="("
-                for i in fieldNo:
-                    query+='?,'
-                query = query[:-1]+"),"
-                chunkLoop+=1
-            query = query[:-1]           
-            
-            insertContent = []
-            for row in chunkrow:
-                i=0
-                for rvalue in row:
-                
-                    key = rvalue
-                    value = row[rvalue]
-                    #print (key+"->"+str(value))
-                    #if value is None or value=='':
-                    if (value=='' and 'bit' not in datatype[i]) or value is None  :
-                        insertContent.append(None)
-                    else:                
-                        if 'bit' in datatype[i]:
-                            #insertContent.append(int(1 if str(value)=="True" else 0))
-                            insertContent.append(bytes(1) if str(value).lower()=="true" else bytes(0))
-                            #print (bytes(1) if str(value).lower()=="true" else None)
-                        else:
-                            if 'date' in datatype[i]:
-                                if str(value)=='0000-00-00 00:00:00':
-                                    insertContent.append(None)
-                                else:
-                                    insertContent.append(str(value))
+                key = rvalue
+                value = row[rvalue]
+                #print (key+"->"+str(value))
+                #if value is None or value=='':
+                if (value=='' and 'bit' not in datatype[i]) or value is None  :
+                    insertContent.append(None)
+                else:                
+                    if 'bit' in datatype[i]:
+                        #insertContent.append(int(1 if str(value)=="True" else 0))
+                        insertContent.append(bool(1) if str(value).lower()=="true" else bool(0))
+                        # if str(value).lower()=="true":
+                            # print(key+"ha")
+                        # else:
+                            # print(key+"he")
+                    else:
+                        if 'date' in datatype[i]:
+                            if str(value)=='0000-00-00 00:00:00':
+                                insertContent.append(None)
                             else:
                                 insertContent.append(str(value))
-                    i+=1
-                
-            x+=1 
-            processPercentagge = str(trueRowCount) if x*numberOfChunkInEachQuery>trueRowCount else str(x*numberOfChunkInEachQuery)
-            print (processPercentagge+"/"+str(trueRowCount)) 
+                        else:
+                            insertContent.append(str(value))
+                i+=1
+            
+        x+=1 
+        processPercentagge = str(trueRowCount) if x*numberOfChunkInEachQuery>trueRowCount else str(x*numberOfChunkInEachQuery)
+        print (processPercentagge+"/"+str(trueRowCount)) 
 
-            #insertContent = "("+','.join(insertContent)+")"
-            #print (query)  
-            #print (insertContent)  
-            cursor.execute(query,insertContent)
-            cursor.execute('COMMIT')
+        #insertContent = "("+','.join(insertContent)+")"
+        #print (query)  
+        #print (insertContent)  
+        cursor.execute(query,insertContent)
+        cursor.execute('COMMIT')
