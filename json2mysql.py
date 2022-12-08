@@ -148,6 +148,7 @@ try:
             #print (insertContent)  
             cursor.execute(query,insertContent)
             cursor.execute("ALTER TABLE "+tablename+" AUTO_INCREMENT = 1000")
+        os.remove(filename)
     cursor.execute("SET FOREIGN_KEY_CHECKS=1")
     cursor.commit()
     print("import success")
