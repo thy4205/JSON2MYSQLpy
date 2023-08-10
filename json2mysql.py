@@ -13,9 +13,10 @@ username = ''
 password = ''
 
 
+
 link = pyodbc.connect('DRIVER={MySQL ODBC 8.0 Unicode Driver};SERVER='+server+';DATABASE='+database+';UID='+username+';PWD='+ password+';autocommit=False')
 cursor = link.cursor()
-numberOfChunkInEachQuery = 1000
+numberOfChunkInEachQuery = 20
 keywordList = []
 try:
     path = os.path.dirname(__file__)
